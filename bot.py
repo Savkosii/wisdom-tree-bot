@@ -14,6 +14,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from pid import start_detached
 
 
 def override(method):
@@ -119,6 +120,7 @@ class Bot:
         options = Options()
         options.add_experimental_option("excludeSwitches", ['enable-automation']) 
         options.add_experimental_option('useAutomationExtension', False)
+        options.add_argument("disable-blink-features=AutomationControlled")
         options.add_argument("--start-maximized")
 
         self.browser = Chrome(service=service, options=options)
@@ -164,14 +166,12 @@ class Bot:
             print("Notice: Successfully jump to {}"\
                     .format(self.browser.current_url))
 
-        if self.user_info_exists():
-            self.remove_user_info()
         self.save_user_info()
             
         self.timer = None
 
         self.speed = 1.0
-        
+
     def keys_path(self):
         return self.driver_version + '-patch.pickle'
 

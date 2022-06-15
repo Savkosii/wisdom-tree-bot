@@ -247,9 +247,9 @@ class Bot:
         return self.browser.current_url.find("zhihuishu.com") != -1
 
     def course_url_invalid(self):
-        return self.locate_player_area(patience=1) is None 
+        return self.locate_player_area(patience=None) is None 
 
-    def locate_player_area(self, patience=30):
+    def locate_player_area(self, patience=12):
         return self.find_element(By.XPATH, 
                     '//*[@class="videoArea"]', patience=patience) 
 
@@ -264,7 +264,7 @@ class Bot:
         self.timer.abort()
         self.timer = None
 
-    def find_element(self, by, pattern, patience=30):
+    def find_element(self, by, pattern, patience=12):
         try:
             if patience is not None:
                 element = WebDriverWait(self.browser, patience).until(
@@ -275,7 +275,7 @@ class Bot:
         except:
             return None
 
-    def find_elements(self, by, pattern, patience=30):
+    def find_elements(self, by, pattern, patience=12):
         try:
             if patience is not None:
                 elements = WebDriverWait(self.browser, patience).until(
@@ -287,24 +287,31 @@ class Bot:
             return []
 
     def move_to_element(self, element):
-        ActionChains(self.browser).move_to_element(element).perform()
+        actions = ActionChains(self.browser)
+        actions.move_to_element_with_offset(element, uniform(2, 12), uniform(2, 12))
+        actions.perform()
 
     def move_and_click(self, element):
-        self.move_to_element(element)
-        element.click()
+        actions = ActionChains(self.browser)
+        actions.move_to_element_with_offset(element, uniform(2, 12), uniform(2, 12))
+        actions.pause(uniform(0.1, 0.2))
+        actions.click_and_hold(element)
+        actions.pause(uniform(0.05, 0.10))
+        actions.release()
+        actions.perform()
 
-    def locate_next_unwatched_video(self, patience=30):
+    def locate_next_unwatched_video(self, patience=12):
         return self.find_element(By.XPATH, 
                     '//li[contains(@class, "clearfix video") ' + 
                     'and not(.//b[@class="fl time_icofinish"])]', 
                     patience=patience)
 
-    def locate_speed_control_button(self, patience=30):
+    def locate_speed_control_button(self, patience=12):
         control_button = self.find_element(By.XPATH, '//*[@class="speedBox"]', 
                             patience=patience)
         return control_button
 
-    def locate_speed_choice(self, patience=30):
+    def locate_speed_choice(self, patience=12):
         speed_button = self.find_element(By.XPATH, '//*[@class="speedBox"]' +
                         '//*[@class="speedList"]//div[@class="speedTab speedTab15"]', 
                         patience=patience)
@@ -321,11 +328,11 @@ class Bot:
                     '//div[@class="playButton"]', 
                     patience=None)
 
-    def video_length(self, patience=30):
+    def video_length(self, patience=12):
         return Utilities.as_seconds(self.find_element(By.XPATH, 
-                '//li[@class="clearfix video current_play"]'
-                '//*[@class="time fl"]',
-                patience=patience).get_attribute("textContent"))
+                    '//li[@class="clearfix video current_play"]'
+                    '//*[@class="time fl"]',
+                    patience=patience).get_attribute("textContent"))
 
     def video_finished(self):
         return self.find_element(By.XPATH, 
@@ -358,7 +365,7 @@ class Bot:
             print(strftime("%H:%M:%S: {}", localtime())  \
                  .format("Caution catched, aborting..."))
             self.exit_driver()
-            exit(1)
+            os._exit(1)
 
         # The outermost layer
         button = self.find_element(By.XPATH, 

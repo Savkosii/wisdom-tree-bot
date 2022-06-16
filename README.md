@@ -30,7 +30,7 @@
   可使用 pip 安装，命令：
 
   ```
-  pip install selenium webdriver-manager
+  pip install selenium webdriver-manager undetected-chromedriver
   ```
 
 - 其他：Chrome，以及一个拥有正常分辨率的系统

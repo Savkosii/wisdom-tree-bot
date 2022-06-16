@@ -6,15 +6,13 @@ from threading import Thread, Lock
 from random import choice, randrange, uniform
 from os.path import dirname, basename 
 from string import ascii_letters, digits
-from selenium.webdriver import Chrome
+from undetected_chromedriver import Chrome as _Chrome
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-from pid import start_detached
 
 
 def override(method):
@@ -22,7 +20,6 @@ def override(method):
     return method
 
 
-# A decorator for method, serving like `synchronized` keyword in java
 def synchronized(method):
     outer_lock = Lock()
     lock_name = "__" + method.__name__ + "_lock" + "__"
@@ -102,28 +99,29 @@ class Timer(Thread):
         self.current_time += 1
 
 
+class Chrome(_Chrome):
+    # The following method is used to remove some flags and avoid detection in 
+    # `undetected_chromedriver.Chrome.get(self, url)` originally,
+    # but it will cause the blockage of the video player.
+    @override
+    def _hook_remove_cdc_props(self):
+        pass
+
+
 class Bot:
     def __init__(self):
-        service = Service(ChromeDriverManager(version="latest", path=".").install())
+        ChromeDriverManager(version="latest", path=".").install()
 
         self.driver_path = self.locate_latest_driver_path()
 
         if self.driver_path is None:
             print("Error: cannot locate driver executable path")
-            exit(1)
-
-        self.driver_version = basename(dirname(self.driver_path))
-
-        if not self.driver_patched():
-            self.patch_driver()
+            os._exit(1)
 
         options = Options()
-        options.add_experimental_option("excludeSwitches", ['enable-automation']) 
-        options.add_experimental_option('useAutomationExtension', False)
-        options.add_argument("disable-blink-features=AutomationControlled")
         options.add_argument("--start-maximized")
 
-        self.browser = Chrome(service=service, options=options)
+        self.browser = Chrome(driver_executable_path=self.driver_path, options=options)
 
         if self.user_info_exists(): 
             url = self.load_user_info()
@@ -172,20 +170,6 @@ class Bot:
 
         self.speed = 1.0
 
-    def keys_path(self):
-        return self.driver_version + '-patch.pickle'
-
-    def original_keys(self):
-        return bytes('$cdc_asdjflasutopfhvcZLmcfl_', 'utf-8')
-
-    def save_keys(self, keys):
-        with open(self.keys_path(), 'wb') as stream: 
-            pickle.dump(keys, stream)
-
-    def generate_random_keys(self):
-       random_string = '$' + Utilities.random_string(len(self.original_keys()) - 1)
-       return bytes(random_string, 'utf-8')
-
     def locate_latest_driver_path(self):
         drive_name = "chromedriver"
         if sys.platform.startswith('win'):
@@ -194,21 +178,8 @@ class Bot:
         if not driver_paths:
             return None
         else:
-            driver_paths.sort(key= lambda path: tuple(basename(dirname(path)).split('.')))
+            driver_paths.sort(key=lambda path: tuple(basename(dirname(path)).split('.')))
             return driver_paths[-1]
-
-    def driver_patched(self):
-        return Utilities.file_exists(self.keys_path())
-
-    # Replace a specific string in the driver executable file.
-    # This helps escaping the detection of website targeted. 
-    def patch_driver(self):
-        new_keys = self.generate_random_keys() 
-        self.save_keys(new_keys)
-        with open(self.driver_path, "r+b") as stream:
-            res = stream.read().replace(self.original_keys(), new_keys)
-            stream.seek(0)
-            stream.write(res)
 
     def user_info_path(self):
         return "user.pickle"
@@ -286,18 +257,28 @@ class Bot:
         except:
             return []
 
+    # don't do any movement before move to a located element.
     def move_to_element(self, element):
         actions = ActionChains(self.browser)
-        actions.move_to_element_with_offset(element, uniform(2, 12), uniform(2, 12))
+        actions.move_to_element_with_offset(element, uniform(6, 10), uniform(6, 10))
+        actions.pause(uniform(0.05, 0.10))
+        actions.move_by_offset(uniform(-3, 3), uniform(-3, 3))
+        actions.pause(uniform(0.05, 0.10))
+        actions.move_by_offset(uniform(-2, 2), uniform(-2, 2))
+        actions.pause(uniform(0.05, 0.10))
         actions.perform()
 
     def move_and_click(self, element):
         actions = ActionChains(self.browser)
-        actions.move_to_element_with_offset(element, uniform(2, 12), uniform(2, 12))
-        actions.pause(uniform(0.1, 0.2))
-        actions.click_and_hold(element)
+        actions.move_to_element_with_offset(element, uniform(6, 10), uniform(6, 10))
+        actions.pause(uniform(0.05, 0.10))
+        actions.click_and_hold()
         actions.pause(uniform(0.05, 0.10))
         actions.release()
+        actions.pause(uniform(0.05, 0.10))
+        actions.move_by_offset(uniform(-3, 3), uniform(-3, 3))
+        actions.pause(uniform(0.05, 0.10))
+        actions.move_by_offset(uniform(-2, 2), uniform(-2, 2))
         actions.perform()
 
     def locate_next_unwatched_video(self, patience=12):
@@ -364,7 +345,6 @@ class Bot:
         if caution_button:
             print(strftime("%H:%M:%S: {}", localtime())  \
                  .format("Caution catched, aborting..."))
-            self.exit_driver()
             os._exit(1)
 
         # The outermost layer
@@ -385,7 +365,7 @@ class Bot:
             return button
         
         # The innermost layer
-        # One button of this list is same as the close button of question
+        # This type of button is same as the close button of question
         # except for the different session and context.
         button = self.find_element(By.XPATH, 
                     '//*[@class="el-dialog__header"]'
@@ -450,11 +430,11 @@ class Bot:
         try:
             self.close_pop_up_window_if_any()
             self.move_to_element(self.locate_player_area())
-            self.move_and_click(self.locate_speed_control_button())
+            self.move_to_element(self.locate_speed_control_button())
         except:
             self.close_pop_up_window_if_any()
             self.move_to_element(self.locate_player_area())
-            self.move_and_click(self.locate_speed_control_button())
+            self.move_to_element(self.locate_speed_control_button())
         try:
             self.move_and_click(self.locate_speed_choice())
         except:
@@ -484,8 +464,7 @@ class Bot:
             while not self.video_finished():
                 if not self.timer.is_alive():
                     print("Error: exception occurs: video does not end as expected")
-                    self.exit_driver()
-                    exit(1)
+                    os._exit(1)
 
                 if self.locate_play_button() and not self.video_finished():
                     self.play_video()

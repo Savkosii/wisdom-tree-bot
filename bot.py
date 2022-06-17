@@ -112,7 +112,7 @@ class Bot:
 
         if self.driver_path is None:
             print("Error: cannot locate driver executable path")
-            os._exit(1)
+            exit(1)
 
         options = Options()
         options.add_argument("--start-maximized")
@@ -356,7 +356,7 @@ class Bot:
         if caution_button:
             print(strftime("%H:%M:%S: {}", localtime())  \
                  .format("Caution catched, aborting..."))
-            os._exit(1)
+            self.die()
 
         # The outermost layer
         button = self.find_element(By.XPATH, 

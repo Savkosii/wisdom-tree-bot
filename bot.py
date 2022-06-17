@@ -63,21 +63,17 @@ class Timer(Thread):
     # Fields related to time are all represented as seconds
     # pivotal: flag that indicates whether when the timer is done,
     # the program needs to exit
-    def __init__(self, duration=None, cycle=1.0, pivotal=False):
+    def __init__(self, duration=None, cycle=1.0):
         Thread.__init__(self)
         self.current_time = 0
         self.duration = duration
         self.cycle = cycle
         self.stop = False
-        self.pivotal = pivotal
 
     def run(self):
         while not self.stop and not self.reach_end():
             self.time_increment()
             sleep(self.cycle)
-        if self.pivotal:
-            print("Program exit as schedule")
-            os._exit(0)
 
     @synchronized
     def abort(self):
@@ -109,7 +105,7 @@ class Chrome(_Chrome):
 
 
 class Bot:
-    def __init__(self):
+    def __init__(self, lifetime_timer: Timer=None):
         ChromeDriverManager(version="latest", path=".").install()
 
         self.driver_path = self.locate_latest_driver_path()
@@ -165,8 +161,9 @@ class Bot:
                     .format(self.browser.current_url))
 
         self.save_user_info()
-            
-        self.timer = None
+
+        self.video_timer = None
+        self.lifetime_timer = lifetime_timer
 
         self.speed = 1.0
 
@@ -227,13 +224,27 @@ class Bot:
     def login_requested(self):
         return self.browser.current_url.find("login") != -1
 
-    def set_timer(self, timer: Timer):
-        self.timer = timer
-        self.timer.start()
+    def abort_lifetime_timer(self):
+        self.lifetime_timer.abort()
+        Thread.join(self.lifetime_timer)
+        self.lifetime_timer = None
 
-    def abort_timer(self):
-        self.timer.abort()
-        self.timer = None
+    def life_ends(self):
+        if self.lifetime_timer and not self.lifetime_timer.is_alive():
+            return True
+        else:
+            return False
+
+    def abort_video_timer(self):
+        self.video_timer.abort()
+        Thread.join(self.video_timer)
+        self.video_timer = None
+
+    def video_timer_dead(self):
+        if self.video_timer and not self.video_timer.is_alive():
+            return True
+        else:
+            return False
 
     def find_element(self, by, pattern, patience=12):
         try:
@@ -443,28 +454,36 @@ class Bot:
 
         self.speed = 1.5
 
-    def exit_driver(self):
+    def die(self, status=0):
+        if self.video_timer:
+            self.abort_video_timer()
+        if self.lifetime_timer:
+            self.abort_lifetime_timer()
         self.browser.close()
         self.browser.quit()
+        exit(status)
 
     def run(self):
-        count = 1
+        if self.lifetime_timer:
+            self.lifetime_timer.start()
+
         self.close_pop_up_window_if_any()
         while self.locate_next_unwatched_video(patience=5):
-            print(strftime("%H:%M:%S: play {}th unwatched video", localtime())  \
-                 .format(count))
-
             self.select_next_unwatched_video() 
             sleep(uniform(1.0, 2.0))
-
             # Set timer in case of the video getting blocked unexpectedly,
             # causing the program wait endlessly,
             # which is likely to be caused by a pop-up window never handled by user
-            self.set_timer(Timer(duration=self.video_length() + 600))
+            self.video_timer = Timer(duration=self.video_length() + 600)
+            self.video_timer.start()
             while not self.video_finished():
-                if not self.timer.is_alive():
+                if self.life_ends():
+                    print("Notice: program exit as schedule")
+                    self.die()
+
+                if self.video_timer_dead():
                     print("Error: exception occurs: video does not end as expected")
-                    os._exit(1)
+                    self.die(1)
 
                 if self.locate_play_button() and not self.video_finished():
                     self.play_video()
@@ -472,21 +491,19 @@ class Bot:
                 if not self.has_speed_up():
                     self.speed_up()
                 
-                sleep(3)
+                sleep(uniform(2.5, 3.0))
 
-            self.abort_timer()
+            self.abort_video_timer()
             sleep(uniform(1.0, 2.0))
 
-            count += 1
-
-        self.exit_driver()
+        self.die()
 
 
 def main():
+    lifetime_timer = None 
     if len(sys.argv) > 1:
-        duration = Utilities.as_seconds(sys.argv[1]) 
-        Timer(duration=duration, pivotal=True).start()
-    bot = Bot()
+        lifetime_timer = Timer(Utilities.as_seconds(sys.argv[1])) 
+    bot = Bot(lifetime_timer)
     bot.run()
 
 

@@ -73,16 +73,13 @@ class Bot:
                 while self.course_url_invalid():
                     sleep(1)
             else:
-                sleep(1)
-                # recheck
-                if self.course_url_invalid():
-                    print("Error: cannot locate video player from {}" \
-                        .format(self.browser.current_url))
-                    print("Please go to the video page manually")
-                    while self.course_url_invalid():
-                        sleep(1)
+                print("Error: cannot locate video player from {}" \
+                    .format(self.browser.current_url))
+                print("Please go to the video page manually")
+                while self.course_url_invalid():
+                    sleep(1)
 
-            print("Notice: Successfully jump to {}"\
+            print("Notice: locate video player successfully in {}"\
                     .format(self.browser.current_url))
 
         self.save_user_info()

@@ -2,10 +2,9 @@ import os
 import sys
 import pickle
 from time import sleep, localtime, strftime
-from threading import Thread, Lock
+from threading import Thread
 from random import choice, randrange, uniform
 from os.path import dirname, basename 
-from string import ascii_letters, digits
 from undetected_chromedriver import Chrome as _Chrome
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
@@ -14,85 +13,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
-
-def override(method):
-    method.is_overridden = True
-    return method
-
-
-def synchronized(method):
-    outer_lock = Lock()
-    lock_name = "__" + method.__name__ + "_lock" + "__"
-
-    def wrapper(self, *args, **kws):
-        with outer_lock:
-            if not hasattr(self, lock_name):
-                setattr(self, lock_name, Lock())
-            lock = getattr(self, lock_name)
-            with lock:
-                return method(self, *args, **kws)
-
-    return wrapper
-
-
-class Utilities:
-    def as_seconds(time_str):
-        mult = 1
-        seconds = 0
-        time_components = time_str.split(':')
-        while time_components:
-            seconds += int(time_components.pop().strip()) * mult
-            mult *= 60
-        return seconds
-
-    def random_string(length=26, chars=ascii_letters + digits):
-        return ''.join([choice(chars) for _ in range(length)])
-    
-    def search_file_recursively(filename, search_path="."):
-        result = []
-        for root, _, files in os.walk(search_path):
-            if filename in files:
-                result.append(os.path.join(root, filename))
-        return result
-
-    def file_exists(file_path):
-        return os.path.exists(file_path)
-
-
-class Timer(Thread):
-    # Fields related to time are all represented as seconds
-    # pivotal: flag that indicates whether when the timer is done,
-    # the program needs to exit
-    def __init__(self, duration=None, cycle=1.0):
-        Thread.__init__(self)
-        self.current_time = 0
-        self.duration = duration
-        self.cycle = cycle
-        self.stop = False
-
-    def run(self):
-        while not self.stop and not self.reach_end():
-            self.time_increment()
-            sleep(self.cycle)
-
-    @synchronized
-    def abort(self):
-        self.stop = True
-
-    @synchronized
-    def reach_end(self):
-        if self.duration is None:
-            return False
-        else:
-            return self.get_current_time() >= self.duration
-
-    @synchronized
-    def get_current_time(self):
-        return self.current_time 
-
-    @synchronized
-    def time_increment(self):
-        self.current_time += 1
+from timer import Timer
+from utilities import override
+from utilities import as_seconds, random_string
+from utilities import search_file_recursively, file_exists
 
 
 class Chrome(_Chrome):
@@ -117,7 +41,8 @@ class Bot:
         options = Options()
         options.add_argument("--start-maximized")
 
-        self.browser = Chrome(driver_executable_path=self.driver_path, options=options)
+        self.browser = Chrome(driver_executable_path=
+                            self.driver_path, options=options)
 
         if self.user_info_exists(): 
             url = self.load_user_info()
@@ -171,18 +96,19 @@ class Bot:
         drive_name = "chromedriver"
         if sys.platform.startswith('win'):
             drive_name += '.exe'
-        driver_paths = Utilities.search_file_recursively(drive_name)
+        driver_paths = search_file_recursively(drive_name)
         if not driver_paths:
             return None
         else:
-            driver_paths.sort(key=lambda path: tuple(basename(dirname(path)).split('.')))
+            driver_paths.sort(key=lambda path: 
+                              tuple(basename(dirname(path)).split('.')))
             return driver_paths[-1]
 
     def user_info_path(self):
         return "user.pickle"
 
     def user_info_exists(self):
-        return Utilities.file_exists(self.user_info_path()) 
+        return file_exists(self.user_info_path()) 
 
     def save_user_info(self):
         cookies = self.browser.get_cookies()
@@ -198,14 +124,18 @@ class Bot:
         with open(self.user_info_path(), "rb") as stream:
             # The site will redirect the user with invalid cookies to login page,
             # which has a different domain.
-            # Unfortunately, selenium does not support set cookies from a difference domain.
-            # But this can be solved by jumping to the 404 page 
-            # of that domain and set cookies there.
+            # Unfortunately, selenium does not support set cookies 
+            # from a difference domain.
+            # But this can be solved by jumping to an error page 
+            # of that domain first and set cookies then.
             # Everything is done before we request the targeted page.
+            prev_url = self.browser.current_url
             [cookies, url] = pickle.load(stream)
-            self.browser.get("https://studyh5.zhihuishu.com/{}".format(randrange(1, 405)))
+            self.browser.get("https://studyh5.zhihuishu.com/{}".format(
+                            random_string(length=randrange(8, 12))))
             for cookie in cookies:
                 self.browser.add_cookie(cookie)
+            self.browser.get(prev_url)
             return url
 
     def remove_user_info(self):
@@ -282,6 +212,9 @@ class Bot:
     def move_and_click(self, element):
         actions = ActionChains(self.browser)
         actions.move_to_element_with_offset(element, uniform(6, 10), uniform(6, 10))
+        actions.move_by_offset(uniform(-3, 3), uniform(-3, 3))
+        actions.pause(uniform(0.05, 0.10))
+        actions.move_by_offset(uniform(-2, 2), uniform(-2, 2))
         actions.pause(uniform(0.05, 0.10))
         actions.click_and_hold()
         actions.pause(uniform(0.05, 0.10))
@@ -304,8 +237,8 @@ class Bot:
         return control_button
 
     def locate_speed_choice(self, patience=12):
-        speed_button = self.find_element(By.XPATH, '//*[@class="speedBox"]' +
-                        '//*[@class="speedList"]//div[@class="speedTab speedTab15"]', 
+        speed_button = self.find_element(By.XPATH, '//*[@class="speedList"]'
+                                        '//div[@class="speedTab speedTab15"]', 
                         patience=patience)
         return speed_button
 
@@ -321,7 +254,7 @@ class Bot:
                     patience=None)
 
     def video_length(self, patience=12):
-        return Utilities.as_seconds(self.find_element(By.XPATH, 
+        return as_seconds(self.find_element(By.XPATH, 
                     '//li[@class="clearfix video current_play"]'
                     '//*[@class="time fl"]',
                     patience=patience).get_attribute("textContent"))
@@ -356,7 +289,7 @@ class Bot:
         if caution_button:
             print(strftime("%H:%M:%S: {}", localtime())  \
                  .format("Caution catched, aborting..."))
-            self.die()
+            self.die(close_browser=False, status=1)
 
         # The outermost layer
         button = self.find_element(By.XPATH, 
@@ -431,22 +364,31 @@ class Bot:
         try:
             self.close_pop_up_window_if_any()
             self.move_to_element(self.locate_player_area())
-            self.move_and_click(self.locate_play_button())
         except:
             self.close_pop_up_window_if_any()
             self.move_to_element(self.locate_player_area())
+        try:
+            self.close_pop_up_window_if_any()
             self.move_and_click(self.locate_play_button())
+        except:
+            self.play_video()
+            return
 
     def speed_up(self):
         try:
             self.close_pop_up_window_if_any()
             self.move_to_element(self.locate_player_area())
-            self.move_to_element(self.locate_speed_control_button())
         except:
             self.close_pop_up_window_if_any()
             self.move_to_element(self.locate_player_area())
-            self.move_to_element(self.locate_speed_control_button())
         try:
+            self.close_pop_up_window_if_any()
+            self.move_to_element(self.locate_speed_control_button())
+        except:
+            self.speed_up()
+            return
+        try:
+            self.close_pop_up_window_if_any()
             self.move_and_click(self.locate_speed_choice())
         except:
             self.speed_up()
@@ -454,13 +396,14 @@ class Bot:
 
         self.speed = 1.5
 
-    def die(self, status=0):
+    def die(self, close_browser=True, status=0):
         if self.video_timer:
             self.abort_video_timer()
         if self.lifetime_timer:
             self.abort_lifetime_timer()
-        self.browser.close()
-        self.browser.quit()
+        if close_browser:
+            self.browser.close()
+            self.browser.quit()
         exit(status)
 
     def run(self):
@@ -483,7 +426,7 @@ class Bot:
 
                 if self.video_timer_dead():
                     print("Error: exception occurs: video does not end as expected")
-                    self.die(1)
+                    self.die(close_browser=False, status=1)
 
                 if self.locate_play_button() and not self.video_finished():
                     self.play_video()
@@ -502,7 +445,7 @@ class Bot:
 def main():
     lifetime_timer = None 
     if len(sys.argv) > 1:
-        lifetime_timer = Timer(Utilities.as_seconds(sys.argv[1])) 
+        lifetime_timer = Timer(as_seconds(sys.argv[1])) 
     bot = Bot(lifetime_timer)
     bot.run()
 

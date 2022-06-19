@@ -2,6 +2,7 @@ from threading import Thread
 from time import sleep
 from utilities import synchronized, override
 
+
 class Timer(Thread):
     # Fields related to time are all represented as seconds
     def __init__(self, duration=None, cycle=1.0):

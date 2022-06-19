@@ -56,7 +56,7 @@ cd wisdom-tree-bot
 ```
 
 ### Run bot.py
-直接执行 bot.py，您既可以使用命令行：
+最后直接执行 bot.py，您既可以使用命令行：
 
 ```bash
 python3 bot.py

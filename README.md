@@ -25,7 +25,7 @@
 
   Windows用户的安装可参考：https://phoenixnap.com/kb/install-pip-windows
 
-- 所需的包：selenium, webdriver-manager
+- 所需的包：selenium, webdriver-manager undetected-chromedriver
 
   可使用 pip 安装，命令：
 
@@ -33,7 +33,7 @@
   pip install selenium webdriver-manager undetected-chromedriver
   ```
 
-- 其他：Chrome，以及一个拥有正常分辨率的系统
+- 其他：Chrome 浏览器，以及一个拥有正常分辨率的系统
 
 ## Quick Start
 
@@ -75,4 +75,4 @@ python3 bot.py 1800
 
 ## Issues
 
-- 无法解决 Captcha 验证码弹窗
+- 无法自动关闭 Captcha 验证码弹窗

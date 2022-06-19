@@ -46,7 +46,7 @@ git clone https://github.com/Savkosii/wisdom-tree-bot.git
 
 如果您是 windows 用户，git 的安装可以参考: https://gitforwindows.org/
 
-如果您不想安装 git，可以直接点开当前目录下的 `Code` 按钮，选择 `Download ZIP` 下载源码包，然后解压即可
+如果您不想安装 git，可以直接点开此仓库下的 `Code` 按钮，选择 `Download ZIP` 下载源码包，然后解压即可
 
 ### Change directory
 上述操作完成后，您当前的文件夹应该会多出一个名为 `wisdom-tree-bot` 的文件夹，这时进入该文件夹

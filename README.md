@@ -4,7 +4,7 @@
 
 基于 Python selenium 的智慧树刷课 bot
 
-## Feature
+## Features
 
 - 模拟用户在网页中的鼠标移动、点击等行为，不涉及对任何页面元素的篡改，相比很多常见的 js 脚本更为安全
 - 使用 [undetected_chromedriver](https://github.com/ultrafunkamsterdam/undetected-chromedriver) 作为浏览器驱动，使 bot 更难以被检测
@@ -37,7 +37,25 @@
 
 ## Quick Start
 
-直接执行脚本即可，您既可以使用命令行：
+### Download src
+首先下载源码（需要安装 git）：
+
+```bash
+git clone https://github.com/Savkosii/wisdom-tree-bot.git
+```
+
+如果您是 windows 用户且没有 git，可以参照如下网页安装 git: https://gitforwindows.org/
+如果您不想安装 git，可以直接点开当且仓库页面下的 `Code` 按钮，选择 `Download ZIP` 下载源码包，然后解压即可
+
+### Change directory
+上述操作完成后，您当前文件夹应该会多出一个名为 `wisdom-tree-bot` 的文件夹，这时进入该文件夹
+
+```bash
+cd wisdom-tree-bot
+```
+
+### Run bot.py
+直接执行 bot.py，您既可以使用命令行：
 
 ```bash
 python3 bot.py
